@@ -1,0 +1,36 @@
+[package]
+name = "stemin-format"
+description = "The Stemin course format: the tree, the blocks, the front matter, the ids, and the structural checks."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[lib]
+name = "stemin_format"
+
+[features]
+default = ["fs"]
+# Reading a repository from disk. Off in the browser, which holds a repository
+# as the paths and bytes it fetched, and walks the same `tree::read_map`.
+fs = []
+
+[dependencies]
+# Every one of these builds for wasm32: the Stemin app parses the same format
+# in the browser that `stemin check` reads on the author's machine.
+serde.workspace = true
+serde_yaml.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+
+# The plot spec crosses to the browser as JSON, so the round trip is tested in
+# both formats.
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

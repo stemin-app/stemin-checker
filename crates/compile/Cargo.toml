@@ -1,0 +1,45 @@
+[package]
+name = "stemin-compile"
+description = "The Stemin content model, and the compiler that turns a course repository into the bundles the app reads."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[lib]
+name = "stemin_compile"
+
+[features]
+default = ["compile"]
+# The compiler: Markdown to HTML, LaTeX to MathML, and the SVG allowlist. It
+# builds for wasm32, because the Stemin app runs it in the browser. Off, the
+# crate holds the content model alone, as the wire types a server needs.
+compile = [
+    "dep:pulldown-cmark",
+    "dep:pulldown-latex",
+    "dep:quick-xml",
+    "dep:thiserror",
+]
+
+[dependencies]
+# Always available: the wasm-safe content model, and the hash behind a domain
+# id (the app derives the same id from the same URL, with no server).
+stemin-format.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+serde_json.workspace = true
+blake3.workspace = true
+pulldown-cmark = { workspace = true, optional = true }
+pulldown-latex = { workspace = true, optional = true }
+quick-xml = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+
+[dev-dependencies]
+stemin-format = { workspace = true, features = ["fs"] }
+
+[lints]
+workspace = true

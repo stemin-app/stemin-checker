@@ -1,0 +1,25 @@
+[package]
+name = "stemin"
+description = "The Stemin checker: everything the import of a learner checks, on your own machine."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "stemin"
+path = "src/main.rs"
+
+[dependencies]
+stemin-format = { workspace = true, features = ["fs"] }
+stemin-compile = { workspace = true, features = ["compile"] }
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true

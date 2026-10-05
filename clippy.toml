@@ -1,0 +1,8 @@
+# Allow the panicking macros and unwrap/expect inside tests only.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true
+
+# Domain proper nouns that need no backticks in docs (".." keeps the defaults).
+doc-valid-idents = ["..", "MathML", "CeTZ", "LaTeX", "CommonMark", "GFM", "NewCM", "IndexedDB"]

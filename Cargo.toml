@@ -1,0 +1,73 @@
+[workspace]
+resolver = "3"
+members = ["crates/format", "crates/compile", "crates/cli"]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.93"
+license = "MIT OR Apache-2.0"
+authors = ["Valentin Radu"]
+repository = "https://github.com/stemin-app/stemin-checker"
+homepage = "https://stemin.app"
+publish = false
+
+[workspace.dependencies]
+stemin-format = { path = "crates/format", version = "0.2.0", default-features = false }
+stemin-compile = { path = "crates/compile", version = "0.2.0", default-features = false }
+
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+thiserror = "2"
+blake3 = "1"
+# The compiler: Markdown prose, LaTeX to native MathML, and the reader behind
+# the SVG allowlist. Every one builds for wasm32, because the Stemin app runs
+# this compiler in the browser.
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+pulldown-latex = "0.7"
+quick-xml = { version = "0.42", default-features = false }
+# The command line.
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+rust_2024_compatibility = { level = "deny", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+# Prefer #[expect(reason = "...")] over #[allow].
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+# Error handling: no panicking shortcuts.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+exit = "deny"
+# No print/debug macros; use tracing.
+print_stdout = "deny"
+print_stderr = "deny"
+dbg_macro = "deny"
+# Strict numeric casts and arithmetic.
+as_conversions = "deny"
+cast_possible_truncation = "deny"
+cast_possible_wrap = "deny"
+cast_precision_loss = "deny"
+cast_sign_loss = "deny"
+cast_lossless = "deny"
+arithmetic_side_effects = "deny"
+float_arithmetic = "deny"
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
