@@ -620,8 +620,9 @@ $R$: resistance, in ohms
 :::
 ```
 
-A legend is one `symbol: meaning` per line. The symbol renders as inline MathML; the meaning is
-plain text. Only the first `:` separates them, so a meaning may contain one.
+A legend is one `symbol: meaning` per line. The symbol renders as inline MathML. The meaning is
+prose: write its math in `$…$`, as in a card. Only the first `:` separates them, so a meaning may
+contain one.
 
 ### Drawing: one fenced language, and SVG
 

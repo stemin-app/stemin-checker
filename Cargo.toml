@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/format", "crates/compile", "crates/cli"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.93"
 license = "MIT OR Apache-2.0"
@@ -13,8 +13,8 @@ homepage = "https://stemin.app"
 publish = false
 
 [workspace.dependencies]
-stemin-format = { path = "crates/format", version = "0.2.0", default-features = false }
-stemin-compile = { path = "crates/compile", version = "0.2.0", default-features = false }
+stemin-format = { path = "crates/format", version = "0.2.1", default-features = false }
+stemin-compile = { path = "crates/compile", version = "0.2.1", default-features = false }
 
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"

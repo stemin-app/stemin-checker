@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- A legend's meaning renders its `$…$` math as inline MathML, as a card does. The text around it stays escaped. A `$` with no partner is a fault at its line.
+
 ## 0.2.0
 
 - The source is public, under MIT OR Apache-2.0. The workspace has three crates: `stemin-format`, `stemin-compile` and `stemin`.

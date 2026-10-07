@@ -403,7 +403,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "stemin"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "stemin-compile",
@@ -414,7 +414,7 @@ dependencies = [
 
 [[package]]
 name = "stemin-compile"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "blake3",
  "pulldown-cmark",
@@ -429,7 +429,7 @@ dependencies = [
 
 [[package]]
 name = "stemin-format"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "blake3",
  "serde",

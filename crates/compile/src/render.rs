@@ -244,6 +244,27 @@ pub fn escape_text(value: &str) -> String {
         .replace('>', "&gt;")
 }
 
+/// Render one line of plain prose with inline `$…$` math (e.g. a legend's
+/// meaning). The text between the spans is escaped, and each span becomes
+/// inline MathML, so the line cannot inject markup.
+///
+/// # Errors
+/// Returns a message if a `$` has no partner, or if a span fails to parse.
+pub fn inline_prose(line: &str) -> Result<String, String> {
+    if line.matches('$').count() % 2 == 1 {
+        return Err(format!("a `$` has no closing `$` in \"{line}\""));
+    }
+    let mut out = String::new();
+    for (index, part) in line.split('$').enumerate() {
+        if index % 2 == 0 {
+            out.push_str(&escape_text(part));
+        } else {
+            out.push_str(&inline_math(part)?);
+        }
+    }
+    Ok(out)
+}
+
 /// Render a LaTeX fragment to a MathML string, re-emitted through the
 /// allowlist in [`crate::mathml`].
 ///
@@ -464,6 +485,15 @@ mod tests {
         ] {
             assert_eq!(super::inline_math(latex).expect("renders"), expected);
         }
+    }
+
+    #[test]
+    fn prose_renders_its_math_and_escapes_its_text() {
+        let out = super::inline_prose("a vector of $\\mathbb{R}^n$, x < y").expect("renders");
+        assert!(out.starts_with("a vector of <math"), "{out}");
+        assert!(out.ends_with("</math>, x &lt; y"), "{out}");
+        assert_eq!(super::inline_prose("no math").expect("renders"), "no math");
+        assert!(super::inline_prose("an open $x").is_err());
     }
 
     #[test]

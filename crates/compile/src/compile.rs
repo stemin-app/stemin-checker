@@ -25,7 +25,7 @@ use crate::model::{
     ReferenceDef,
 };
 use crate::render::{
-    Ctx, Rendered, display_math, escape_attr, escape_text, inline_math, render_body,
+    Ctx, Rendered, display_math, escape_attr, inline_math, inline_prose, render_body,
 };
 
 /// The most HTML one domain compiles to, in bytes, pictures inlined.
@@ -533,7 +533,8 @@ impl Domain<'_> {
 
     /// Render a `::: legend` block: `$symbol$: meaning`, one per line. The
     /// symbol becomes inline MathML so it reads like the equation above it;
-    /// the meaning is escaped, so it is safe text.
+    /// the meaning is prose: its `$…$` spans become MathML, and the rest is
+    /// escaped, so it is safe text.
     fn legend(&mut self, path: &str, block: &Block) -> Vec<LegendDef> {
         let mut out = Vec::new();
         for (index, line) in block.body.lines().enumerate() {
@@ -546,9 +547,9 @@ impl Domain<'_> {
                 continue;
             };
             let symbol = symbol.trim().trim_matches('$');
-            match inline_math(symbol) {
-                Ok(symbol) => {
-                    let meaning = escape_text(meaning.trim());
+            match inline_math(symbol).and_then(|symbol| Ok((symbol, inline_prose(meaning.trim())?)))
+            {
+                Ok((symbol, meaning)) => {
                     self.spend(path, symbol.len().saturating_add(meaning.len()));
                     out.push(LegendDef { symbol, meaning });
                 }
