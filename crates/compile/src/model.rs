@@ -50,7 +50,7 @@ pub struct ThemeFonts {
 // ---------------------------------------------------------------------------
 
 /// The current bundle schema version.
-pub const BUNDLE_VERSION: u32 = 6;
+pub const BUNDLE_VERSION: u32 = 7;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bundle {
@@ -131,16 +131,19 @@ pub struct CheckpointDef {
     /// The instructions, the prose before the questions.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub html: String,
-    pub questions: Vec<ExerciseDef>,
+    pub questions: Vec<QuestionDef>,
 }
 
-/// A deck: the unit an author writes. Its cards, its exercises (the
-/// flashcards) and its references, each in order.
+/// A deck: the unit an author writes. Its cards, its flashcards and its
+/// references, each in order.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeckDef {
     pub title: String,
     pub cards: Vec<CardDef>,
-    pub exercises: Vec<ExerciseDef>,
+    /// Version 6 called these `exercises`. The alias lets a device read the
+    /// artifact it holds until the next import compiles it again.
+    #[serde(alias = "exercises")]
+    pub flashcards: Vec<FlashcardDef>,
     /// The global ids of the references this deck declares, in order. Their
     /// content sits in [`Bundle::references`].
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -157,10 +160,27 @@ pub struct CardDef {
     pub plot: Option<Plot>,
 }
 
-/// One exercise (a flashcard): the prompt (front), the answer (back), and an
+/// One flashcard of a deck: the prompt (front), the answer (back), and an
 /// optional worked solution, all rendered HTML.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExerciseDef {
+pub struct FlashcardDef {
+    pub id: String,
+    pub rev: String,
+    pub prompt: String,
+    pub answer: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub solution: Option<String>,
+    /// The index of the card this flashcard stands before, when a card of its
+    /// deck follows it: an inline flashcard. A flashcard after the last card
+    /// has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before: Option<usize>,
+}
+
+/// One question of a checkpoint: the prompt, the answer, and an optional
+/// worked solution, all rendered HTML. Nothing schedules it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuestionDef {
     pub id: String,
     pub rev: String,
     pub prompt: String,

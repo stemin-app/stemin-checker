@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- **Format 3.0.0.** The `::: exercise` block is gone. A deck writes `::: flashcard`, and a checkpoint writes `::: question`: the names the learner sees. The checker refuses format 2, and it names the new block at each `::: exercise`. A block with no id is still `e1`, `e2`, so no id moves. To migrate, change the blocks and write `format: 3.0.0` at the root.
+- The label `exercise` is now `flashcard`, and `question` is new.
+- A flashcard between two cards is an inline flashcard. A flashcard after the last card shows in the sets only, as before.
+- The bundle goes to version 7. A deck holds `flashcards`, and each one carries `before`, the index of the card it stands before, when it is inline. A checkpoint holds `questions`, of their own type.
+
 ## 0.2.1
 
 - A legend's meaning renders its `$…$` math as inline MathML, as a card does. The text around it stays escaped. A `$` with no partner is a fault at its line.

@@ -114,7 +114,7 @@ pub struct CheckpointFolder {
 }
 
 /// A checkpoint's front matter. Its instructions are the prose, and its
-/// questions are `::: exercise` blocks of its own.
+/// questions are `::: question` blocks of its own.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Checkpoint {
     #[serde(default)]
@@ -129,13 +129,14 @@ pub struct Checkpoint {
 /// The defaults are generic on purpose: a course that declares nothing reads
 /// neutrally, and one that wants its own words says so once. A label changes
 /// display only. It never touches an id, a route, a storage key, or progress.
-pub const LABELS: [(&str, &str); 12] = [
+pub const LABELS: [(&str, &str); 13] = [
     ("domain", "Domain"),
     ("section", "Section"),
     ("topic", "Topic"),
     ("deck", "Deck"),
     ("card", "Card"),
-    ("exercise", "Exercise"),
+    ("flashcard", "Flashcard"),
+    ("question", "Question"),
     ("solution", "Solution"),
     ("reference", "Reference"),
     ("references", "References"),
@@ -185,7 +186,7 @@ pub fn label<'a>(overrides: &'a BTreeMap<String, String>, key: &'a str) -> &'a s
 /// The format version this build reads. It rejects a **major** it does not know
 /// and accepts every minor and patch, so the format can gain fields without
 /// breaking a repository that does not use them.
-pub const READS_MAJOR: u64 = 2;
+pub const READS_MAJOR: u64 = 3;
 
 /// One parsed semantic version.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -265,7 +266,7 @@ mod tests {
     /// own key in the interface, which is a bug the table above prevents.
     #[test]
     fn every_label_has_a_default() {
-        assert_eq!(LABELS.len(), 12);
+        assert_eq!(LABELS.len(), 13);
         for (key, default) in LABELS {
             assert!(!default.is_empty(), "{key} has no default");
             // A plural key reads plural. `references` once defaulted to
@@ -281,12 +282,14 @@ mod tests {
 
     #[test]
     fn a_version_parses_and_rejects_the_wrong_major() {
-        assert!(Version::parse("2.0.0").expect("parses").readable());
-        assert!(Version::parse("2.7.3").expect("parses").readable());
+        assert!(Version::parse("3.0.0").expect("parses").readable());
+        assert!(Version::parse("3.7.3").expect("parses").readable());
         // Format 1 kept references in their own folder and checkpoints in a
-        // topic: it does not parse as 2, and nothing converts it.
+        // topic. Format 2 wrote `::: exercise` for a flashcard and for a
+        // question. Neither parses as 3, and nothing converts them.
         assert!(!Version::parse("1.0.0").expect("parses").readable());
-        assert!(!Version::parse("3.0.0").expect("parses").readable());
+        assert!(!Version::parse("2.0.0").expect("parses").readable());
+        assert!(!Version::parse("4.0.0").expect("parses").readable());
     }
 
     #[test]

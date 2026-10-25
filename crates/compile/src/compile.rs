@@ -21,8 +21,8 @@ use stemin_format::{At, Fault, FaultKind, check, front, id, tree};
 use crate::error::{BuildError, Result};
 use crate::model::{
     BUNDLE_VERSION, Bundle, BundleSection, BundleTopic, CardDef, CheckpointDef, CheckpointEntry,
-    CheckpointFolderDef, DeckDef, DomainRef, Edge, EdgeKind, ExerciseDef, GlobalId, LegendDef,
-    ReferenceDef,
+    CheckpointFolderDef, DeckDef, DomainRef, Edge, EdgeKind, FlashcardDef, GlobalId, LegendDef,
+    QuestionDef, ReferenceDef,
 };
 use crate::render::{
     Ctx, Rendered, display_math, escape_attr, inline_math, inline_prose, render_body,
@@ -30,7 +30,7 @@ use crate::render::{
 
 /// The most HTML one domain compiles to, in bytes, pictures inlined.
 ///
-/// The count holds its cards, exercises, references and checkpoints together.
+/// The count holds its cards, flashcards, references and checkpoints together.
 /// A picture inlines at every place that shows it, so without this cap one
 /// picture shown many times would grow the bundle, and the learner's memory,
 /// without a bound.
@@ -162,6 +162,14 @@ impl<'a> Place<'a> {
         stemin_format::block::file_line(self.lines, body_line.saturating_add(self.skip))
             .unwrap_or(self.fallback)
     }
+}
+
+/// A flashcard or a question, rendered: what the two share.
+struct Prompted {
+    rev: String,
+    prompt: String,
+    answer: String,
+    solution: Option<String>,
 }
 
 /// Where a body's `plot` blocks may go.
@@ -311,11 +319,11 @@ impl Domain<'_> {
         }
 
         let mut cards: Vec<CardDef> = Vec::new();
-        let mut exercises: Vec<ExerciseDef> = Vec::new();
+        let mut flashcards: Vec<FlashcardDef> = Vec::new();
         let mut references: Vec<GlobalId> = Vec::new();
         let mut card_no: usize = 0;
         let mut fig_no: usize = 0;
-        let mut ex_no: usize = 0;
+        let mut flashcard_no: usize = 0;
 
         for block in &doc.blocks {
             let place = Place::block(path, block);
@@ -358,12 +366,23 @@ impl Domain<'_> {
                         plot,
                     });
                 }
-                BlockKind::Exercise => {
-                    ex_no = ex_no.saturating_add(1);
-                    let id = block.id.clone().unwrap_or_else(|| format!("e{ex_no}"));
+                BlockKind::Flashcard => {
+                    flashcard_no = flashcard_no.saturating_add(1);
+                    let id = block
+                        .id
+                        .clone()
+                        .unwrap_or_else(|| format!("e{flashcard_no}"));
                     let global = deck_global.reference(&id);
-                    let exercise = self.exercise(&global, path, block, &figures);
-                    exercises.push(ExerciseDef { id, ..exercise });
+                    let part = self.prompted(&global, path, block, &figures);
+                    // The card it stands before, if one follows: set below.
+                    flashcards.push(FlashcardDef {
+                        id,
+                        rev: part.rev,
+                        prompt: part.prompt,
+                        answer: part.answer,
+                        solution: part.solution,
+                        before: Some(cards.len()),
+                    });
                 }
                 BlockKind::Reference => {
                     if let Some(global) = self.reference(path, block) {
@@ -376,24 +395,30 @@ impl Domain<'_> {
             }
         }
 
+        // A flashcard after the last card is not inline: it shows in the
+        // sets only.
+        for flashcard in &mut flashcards {
+            flashcard.before = flashcard.before.filter(|card| *card < cards.len());
+        }
+
         DeckDef {
             title: front.title.unwrap_or_else(|| deck_global.to_string()),
             cards,
-            exercises,
+            flashcards,
             references,
         }
     }
 
-    /// Render one `::: exercise` block: its prompt, answer, and optional
-    /// solution. A link anywhere in it, the answer too, is a `reference` edge
-    /// from the exercise.
-    fn exercise(
+    /// Render one `::: flashcard` or `::: question` block: its prompt,
+    /// answer, and optional solution. A link anywhere in it, the answer too,
+    /// is a `reference` edge from the block.
+    fn prompted(
         &mut self,
         global: &GlobalId,
         path: &str,
         block: &Block,
         figures: &HashMap<String, usize>,
-    ) -> ExerciseDef {
+    ) -> Prompted {
         let link = EdgeKind::Reference;
         let (prompt, _) = self.body(
             global,
@@ -401,7 +426,11 @@ impl Domain<'_> {
             Place::block(path, block),
             &block.body,
             figures,
-            Plots::Refuse("`exercise`"),
+            Plots::Refuse(if block.kind == BlockKind::Question {
+                "`question`"
+            } else {
+                "`flashcard`"
+            }),
         );
         let answer = if let Some(answer) = block.child(BlockKind::Answer) {
             self.body(
@@ -431,14 +460,13 @@ impl Domain<'_> {
             .0
         });
 
-        // The whole exercise: the prompt, the answer and the solution. The rev
+        // The whole block: the prompt, the answer and the solution. The rev
         // is what the refresh reads as identity, so a corrected answer must
         // move it.
-        let mut whole_exercise = block.body.clone();
-        push_blocks(&mut whole_exercise, &block.children);
-        ExerciseDef {
-            id: String::new(),
-            rev: rev_hash(&whole_exercise),
+        let mut whole_block = block.body.clone();
+        push_blocks(&mut whole_block, &block.children);
+        Prompted {
+            rev: rev_hash(&whole_block),
             prompt,
             answer,
             solution,
@@ -584,7 +612,7 @@ impl Domain<'_> {
     }
 
     /// Render one checkpoint: its instructions, then its own questions. The
-    /// questions render as exercises do, and nothing schedules them.
+    /// questions render as flashcards do, and nothing schedules them.
     fn checkpoint(&mut self, global: &GlobalId, node: &tree::Node) -> CheckpointDef {
         let doc = &node.doc;
         let front: front::Checkpoint = parse_front(&doc.front);
@@ -606,18 +634,24 @@ impl Domain<'_> {
         );
 
         let mut questions = Vec::new();
-        let exercises = doc
+        let blocks = doc
             .blocks
             .iter()
-            .filter(|block| block.kind == BlockKind::Exercise);
-        for (index, block) in exercises.enumerate() {
+            .filter(|block| block.kind == BlockKind::Question);
+        for (index, block) in blocks.enumerate() {
             let id = block
                 .id
                 .clone()
                 .unwrap_or_else(|| format!("e{}", index.saturating_add(1)));
             let question_global = global.reference(&id);
-            let question = self.exercise(&question_global, path, block, &no_figures);
-            questions.push(ExerciseDef { id, ..question });
+            let part = self.prompted(&question_global, path, block, &no_figures);
+            questions.push(QuestionDef {
+                id,
+                rev: part.rev,
+                prompt: part.prompt,
+                answer: part.answer,
+                solution: part.solution,
+            });
         }
 
         CheckpointDef {

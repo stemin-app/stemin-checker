@@ -10,21 +10,22 @@ is proven, and renamed to fit the subject:
 | Unit / level | **Topic** | a chapter in the menu |
 | Lesson | **Deck** | one concept, built across several cards |
 | — | **Card** | one step of a deck: one idea, read in the scroll |
-| Exercise | **Exercise** | one practice item, reviewed as a flashcard, FSRS-scheduled |
+| Exercise | **Flashcard** | one practice item of a deck, FSRS-scheduled |
 | Guidebook | **Reference** | a result the learner looks up, with its derivation |
 | Unit test | **Checkpoint** | an exam: its own questions, in a folder (the app says Exam) |
 
 **The deck is the unit, and the only thing an author teaches with.** A deck holds its cards,
-its exercises and its references. Everything above a deck is collected from the decks under it:
+its flashcards and its references. Everything above a deck is collected from the decks under it:
 a chapter's flashcards and references are its decks', a section's are its chapters', and the
 domain's are its sections'. Nothing at those levels is declared. A checkpoint is the one other
 thing an author writes, and it stands apart: its questions are its own.
 
 Two things Duolingo does not have, kept **strictly apart**:
 - a **derivation** says why a **reference** holds. It lives with that reference.
-- a **solution** is the worked answer to an **exercise**. It is reached from that exercise.
+- a **solution** is the worked answer to a **flashcard** or a **question**. It is reached from
+  that block.
 
-A reference's derivation and an exercise's solution are different entities with different
+A reference's derivation and a flashcard's solution are different entities with different
 homes. They are never mixed.
 
 **The filesystem is the structure.** Domain, section, and topic are directories, each with an
@@ -63,7 +64,7 @@ phy/                             domain     id: phy
 │   ├── index.md                   title, tiers, order
 │   ├── fields/                  topic      id: fields
 │   │   ├── index.md               title, tier, requires, order
-│   │   ├── field.md             deck       id: field   (cards, exercises, references)
+│   │   ├── field.md             deck       id: field   (cards, flashcards, references)
 │   │   ├── electric-field.md    deck       id: electric-field
 │   │   └── assets/                inlined at build (§1.4)
 │   │       └── flux.png
@@ -130,7 +131,7 @@ modal can fill itself in one fetch.
 
 ```yaml
 ---
-format: 2.0.0
+format: 3.0.0
 author: Alice Smith
 description: Electricity and magnetism, from charge to the electromagnetic wave.
 order: [phy, math]
@@ -140,8 +141,9 @@ order: [phy, math]
 `format` is **semantic versioning**. The app rejects a repository whose **major** version it
 does not speak, and accepts any minor or patch, so the format can gain fields without breaking
 a course that does not use them. **Format 2.0.0** made the deck the unit: references moved
-into decks and checkpoints into their own folder. A 1.x repository does not parse, and nothing
-converts it.
+into decks and checkpoints into their own folder. **Format 3.0.0** split `::: exercise` in two:
+`::: flashcard` in a deck and `::: question` in a checkpoint, the names the learner sees. A 1.x
+or a 2.x repository does not parse, and nothing converts it.
 
 A licence is the repository's own business (`LICENSE.md`); the format does not carry one.
 
@@ -221,7 +223,8 @@ its own words says so once.
 | `topic` | Topic | Chapter | Module | Assembly |
 | `deck` | Deck | Deck | Walkthrough | Procedure |
 | `card` | Card | Card | Step | Step |
-| `exercise` | Exercise | Exercise | Question | Check |
+| `flashcard` | Flashcard | Flashcard | Question | Check |
+| `question` | Question | Problem | Question | Check |
 | `solution` | Solution | Solution | Worked answer | Worked answer |
 | `reference` | Reference | Formula | Contract | Specification |
 | `references` | References | Formulary | Reference | Specifications |
@@ -236,7 +239,7 @@ A label changes **display only**. It never changes an id, a route, a storage key
 the format parses. So renaming a label is always safe and never touches progress.
 
 **The interface reads two labels today:** `references` and `checkpoints`, the names of the
-Formulary and of the Exams. The other ten are part of the format, and the check accepts them,
+Formulary and of the Exams. The other eleven are part of the format, and the check accepts them,
 but no surface shows them yet. A key that is not in the table is an error.
 
 ### Levels
@@ -249,7 +252,7 @@ but no surface shows them yet. A key that is not in the table is an error.
 | Topic | `fields` | a chapter in the menu | a directory + its `index.md` |
 | Deck | `field` | one concept | a `.md` file |
 | Card | `1` | one step of a deck | a `::: card` block |
-| Exercise | `q1` | one practice item | an `::: exercise` block |
+| Flashcard | `q1` | one practice item | a `::: flashcard` block in a deck |
 | Reference | `ohms-law` | a result you look up | a `::: reference` block in a deck |
 | Checkpoint | `2020` | an exam, with its own questions | a `.md` file under `checkpoints/` |
 
@@ -257,8 +260,9 @@ but no surface shows them yet. A key that is not in the table is an error.
 
 A **deck** is one concept, taught across a short sequence of **cards** that the learner reads
 one after another in the Course, the app's main scroll. A deck file has YAML front matter, then its cards
-in order, then its exercises in order, then its references in order. The Course shows them in
-that order: the content, the flashcards, the references.
+in order, then its flashcards in order, then its references in order. The Course shows them in
+that order: the content, the flashcards, the references. A flashcard can also stand between
+two cards: it is an **inline flashcard** (§3).
 
 ````markdown
 ---
@@ -307,13 +311,19 @@ draw:
 
 ---
 
-## 3. Exercises and solutions
+## 3. Flashcards and solutions
 
-After its cards, a deck declares its **exercises**: the practice items that test the concept.
-An exercise is reviewed as a **flashcard** and scheduled by FSRS, a spaced-repetition scheduler.
+After its cards, a deck declares its **flashcards**: the practice items that test the concept.
+FSRS, a spaced-repetition scheduler, schedules each flashcard.
+
+**A flashcard between two cards is inline.** The Course shows it in the deck, before the next
+card, and the learner can answer it there. It is still a flashcard of its deck: it has
+one schedule, it shows in the chapter's and the section's sets too, and its grades count to the
+progress as the grades of the other flashcards do. It takes no card number, so the numbers of
+the cards do not change. A flashcard after the last card shows in the sets only.
 
 ````markdown
-::: exercise q1
+::: flashcard q1
 Solve $3x - 6 = 9$ for $x$.
 
 ::: answer
@@ -328,26 +338,26 @@ Check: $3(5) - 6 = 9$. ∎
 :::
 ````
 
-Every block is `::: kind` … `:::` with its content between the fences; blocks nest. An exercise
-opens with `::: exercise <id>`. The id is optional: an exercise without one is `e1`, `e2`, … by
-its place among the exercises of its file. Two exercises in one file cannot have the same id,
-and a derived id counts, so a written `e2` and the second exercise without an id collide. Its
+Every block is `::: kind` … `:::` with its content between the fences; blocks nest. A flashcard
+opens with `::: flashcard <id>`. The id is optional: a flashcard without one is `e1`, `e2`, … by
+its place among the flashcards of its file. Two flashcards in one file cannot have the same id,
+and a derived id counts, so a written `e2` and the second flashcard without an id collide. Its
 **prompt** is the text directly inside it; `::: answer` and `::: solution` are nested blocks; the
-closing `:::` ends the exercise.
+closing `:::` ends the flashcard.
 
-- The exercise **prompt** is the flashcard front: one question, one defensible answer.
+- The **prompt** is the flashcard front: one question, one defensible answer.
 - The **`::: answer`** block is the flashcard back: the answer plus at most one line of guidance.
-  It is required: the check refuses an exercise without one.
+  It is required: the check refuses a flashcard without one.
   After flipping, the learner self-grades **fail / almost / perfect**, and FSRS reschedules the
   card.
-- The **`::: solution`** block is optional: the full worked answer (the "exercise derivation"),
+- The **`::: solution`** block is optional: the full worked answer,
   shown under the answer. It is written as a clean log: one step to a line. A
-  solution belongs to one exercise and is reached only from it. It is **not** a reference derivation
+  solution belongs to one flashcard and is reached only from it. It is **not** a reference derivation
   and never appears under Reference.
 
-An exercise belongs to its deck, so the deck is the concept it tests. There is no `explains`
+A flashcard belongs to its deck, so the deck is the concept it tests. There is no `explains`
 edge: the relationship is the containment. A `reference:` link in the prompt, the answer or the
-solution is a `reference` edge from the exercise. A `plot` block in an exercise is an error: the
+solution is a `reference` edge from the flashcard. A `plot` block in a flashcard is an error: the
 app draws a plot only in a card or a figure.
 
 ---
@@ -355,7 +365,7 @@ app draws a plot only in a card or a figure.
 ## 4. References and derivations
 
 A **reference** is a reusable result, declared in the deck that teaches it, after the deck's
-exercises. The chapter, the section and the domain each collect the references of their decks,
+flashcards. The chapter, the section and the domain each collect the references of their decks,
 and the domain's set is the **Formulary**. A reference is its statement plus an
 optional **derivation** of why it holds.
 
@@ -392,20 +402,20 @@ Replacing each column of $A$ by $\vec{b}$ and expanding gives the quotients abov
   app lists under the reference as "Rests on". The build rejects a cycle. Put each link after the
   clause that uses the result, as a marker: `Each drops a voltage by Ohm's law: $V_1 = I R_1$.[Ohm's law](reference:ohms-law)`.
   Do not write a sentence that lists them ("It rests on …"): the app already lists them.
-- A reference is linked from a card, an exercise or another reference with
+- A reference is linked from a card, a flashcard, a question or another reference with
   `[label](reference:id)`. A link into another domain of the same repository is
   `[label](reference:/domain/id)`. The compiler resolves every link, and refuses one that names
   no reference, in this domain or in the other one, with its file and its line.
 
 **The two derivations, never mixed:** a **derivation** answers "why is this reference true" and lives
 under Reference; a **solution** answers "how do I solve this specific problem" and lives on its
-exercise. Different blocks (`::: derivation` vs `::: solution`), different files, different homes.
+flashcard. Different blocks (`::: derivation` vs `::: solution`), different files, different homes.
 
-**A solution is the exercise's own block, beside the answer, never inside it.** Close the answer
+**A solution is the flashcard's own block, beside the answer, never inside it.** Close the answer
 first:
 
 ```
-::: exercise q2
+::: flashcard q2
 Find the Thévenin equivalent the load sees.
 
 ::: answer
@@ -420,7 +430,7 @@ Remove the load. With the terminals open, …
 
 One written inside `::: answer` used to build clean and render nothing at all, which is the worst
 way to lose a piece of content: it says it is there and it is not. The build **rejects** it now,
-naming the exercise.
+naming the flashcard.
 
 ---
 
@@ -428,7 +438,7 @@ naming the exercise.
 
 A **checkpoint** is an exam: a set of questions of its own, the way a university publishes one.
 The app calls it an **Exam** through the domain's labels. It has nothing to do with the
-flashcards: its questions are not a deck's exercises, and the schedule never sees them.
+flashcards: its questions are not flashcards, and the schedule never sees them.
 
 Checkpoints live in a domain's **`checkpoints/`** folder, beside the sections, in folders to
 any depth: one folder per university, and one per year under it, for example. Every folder
@@ -441,7 +451,7 @@ title: Physics, 2020
 
 Answer every question without notes.
 
-::: exercise q1
+::: question q1
 A 9 V source feeds a 3 Ω and a 6 Ω resistor in series. What is the current?
 
 ::: answer
@@ -456,8 +466,8 @@ The resistances add: $9 / (3 + 6) = 1$ A.
 
 - The front matter holds the **title**. The prose before the first question is the
   **instructions**.
-- Each question is an `::: exercise` block, with an `::: answer` and an optional
-  `::: solution`, exactly as a deck's. A checkpoint holds nothing else. A question without an id
+- Each question is a `::: question` block, with an `::: answer` and an optional
+  `::: solution`, exactly as a flashcard. A checkpoint holds nothing else. A question without an id
   is `e1`, `e2`, … by its place, and two questions in one checkpoint cannot share an id.
 - A checkpoint draws no `plot`, in its instructions or in a question.
 - Two folders may each hold a checkpoint with the same id: a checkpoint's route carries its
@@ -488,23 +498,24 @@ The resistances add: $9 / (3 + 6) = 1$ A.
     `solving` in two topics of one domain are an error, and so are two topics called `basics`
     in two sections. A deck and a topic may share an id: the rule is per kind.
   - a reference id is unique in the domain (§4).
-  - an exercise id and a figure id are unique in their file.
+  - a flashcard id, a question id and a figure id are unique in their file.
   - a checkpoint id is free: its route carries its folders, so two folders may each hold a
     `2020`.
 - The build resolves the global id from the containing chain, under the domain id:
   - deck: `<domain-id>/alg/linears/solving`
   - card: `<domain-id>/alg/linears/solving#1` (cards are numbered in order, and take no id)
-  - exercise: `<domain-id>/alg/linears/solving#q1`
+  - flashcard: `<domain-id>/alg/linears/solving#q1`
   - reference: `<domain-id>/cramer` (declared in a deck, but domain-scoped, so a link needs no
     path)
   - checkpoint: `<domain-id>/checkpoints/mit/2020`, and its question `…/2020#q1`
 - **References are browser-style**, relative to the language root, language-free:
-  - to a reference (a `reference:` link in a card, an exercise or a reference):
+  - to a reference (a `reference:` link in a card, a flashcard, a question or a reference):
     `reference:cramer` (same domain) or `reference:/physics/…` (another).
   - to a topic (`requires`): the topic path, no fragment, e.g. `fundamentals` (same section)
     or `/math/alg-basics/fundamentals`. The check refuses a `requires` entry that names no
     topic, and a cycle in the `requires` graph.
-- Solutions and answers need no id or reference: they are sub-blocks of their exercise.
+- Solutions and answers need no id or reference: they are sub-blocks of their flashcard or
+  question.
 - **A cross-domain reference works inside its repository, and nowhere else.** `/math/...` from
   a card in `phy` resolves at build, because both domains are in the tree the build walks. A
   reference to a domain in **another repository** cannot resolve: the other repository may not
@@ -585,20 +596,22 @@ new interface language is one YAML file.
 
 ## 10. The block grammar
 
-**Nine blocks and one fenced language, `plot`.** A block is `::: kind` … `:::`, with an optional
-id after the kind, and blocks nest **one level**: an `answer` or a `solution` in an `exercise`,
+**Ten blocks and one fenced language, `plot`.** A block is `::: kind` … `:::`, with an optional
+id after the kind, and blocks nest **one level**: an `answer` or a `solution` in a `flashcard`
+or a `question`,
 an `equation`, a `legend` or a `derivation` in a `reference`. The check refuses a block that
 opens two levels down, at its line. A live diagram is a fenced code block, not a `:::` block.
-The compiler reads the id of an exercise, a figure and a reference, and ignores a word after
+The compiler reads the id of a flashcard, a question, a figure and a reference, and ignores a word after
 any other block.
 
 | Block | Where | Is |
 |---|---|---|
 | `::: card` | a deck | one step: one idea |
 | `::: figure` | a deck | a diagram with a caption, as a card of its own |
-| `::: exercise <id>` | a deck, or a checkpoint | a flashcard in a deck; a question in a checkpoint |
-| `::: answer` | inside an exercise | the flashcard back, or the question's answer |
-| `::: solution` | inside an exercise | the worked answer, under the answer |
+| `::: flashcard <id>` | a deck | a practice item, after the cards or inline between two |
+| `::: question <id>` | a checkpoint | an exam question |
+| `::: answer` | inside a flashcard or a question | the flashcard back, or the question's answer |
+| `::: solution` | inside a flashcard or a question | the worked answer, under the answer |
 | `::: reference <id>` | a deck | a result to look up, with its `# Title` |
 | `::: equation` | inside a reference | the bare statement, in LaTeX, no `$$` |
 | `::: legend` | inside a reference | what each symbol stands for |
@@ -674,7 +687,7 @@ One fence, and everything that moves. A plot is an **expression in one free vari
 named values bound to sliders, drawn as SVG by the app and re-evaluated as the learner drags.
 
 **A plot goes in a `::: card` or a `::: figure`, one in each.** The app draws nothing else, so
-the check refuses a plot in an exercise, an answer, a solution, a reference, a derivation or
+the check refuses a plot in a flashcard, a question, an answer, a solution, a reference, a derivation or
 a checkpoint, and a second plot in one card.
 
 ### The shape
@@ -832,16 +845,16 @@ labelled peak that **moves with the sliders, because its coordinates are express
 
 ## 11. bundle.yaml (generated, per domain, localized)
 
-The compiler renders every card, exercise, solution, reference, derivation and checkpoint to
+The compiler renders every card, flashcard, solution, reference, derivation and checkpoint to
 HTML, resolves ids and references to global paths, validates, and emits one bundle per domain
-(**version 6**).
+(**version 7**).
 
 **The learner's device holds it as JSON in `IndexedDB`**, keyed by the domain id, written by the
 import worker and parsed when the domain is opened. The YAML below shows the same structure, so
 an author can read what a learner will get:
 
 ```yaml
-version: 6
+version: 7
 lang: en
 author: Alice Smith                # the domain's own, else the repository's
 domain: { id: 9c8f9b9e, title: Mathematics }   # the id is the hash, never the folder
@@ -859,12 +872,13 @@ decks:
     title: Solving a linear equation
     cards:                                 # rendered, in order
       - { rev: b3f1a9c2, html: "<p>A <em>linear equation</em> …</p>" }
-    exercises:
+    flashcards:
       - id: q1
         rev: 9a01ffcd
         prompt:   "<p>Solve <math>…</math> for <math>…</math>.</p>"
         answer:   "<p><math>…</math>. Add 6, then divide by 3.</p>"
         solution: "<p><math display=\"block\">…</math>Check: … ∎</p>"
+        before: 2                          # inline: it stands before card 3
     references: ["math/intercept"]         # the ones this deck declares, in order
 references:
   "math/intercept":
@@ -895,7 +909,8 @@ edges:
 - `sections/topics` give the menu structure: sections, topics (with tier, `requires`, and
   ordered `decks`).
 - `decks` are keyed by global id, each with its `cards` (rendered HTML, in order), its
-  `exercises` (each: `prompt`, `answer`, optional `solution`, all rendered HTML, plus a `rev`),
+  `flashcards` (each: `prompt`, `answer`, optional `solution`, all rendered HTML, plus a `rev`,
+  and `before`, the index of the card an inline flashcard stands before),
   and the ids of its `references`. The HTML is self-contained (prose + MathML + inline themed
   SVG), inlined by the app, no side assets.
 - `references` are keyed by global id: the rendered equation, legend, statement, an optional
@@ -923,7 +938,7 @@ stored:
   repository is rejected (§6).
 - `uses`: **reference → reference**, from the `reference:` links in a reference's derivation.
   The "rests on" DAG of the Formulary.
-- `reference`: **card, exercise or statement → reference**, from any other `reference:` link.
+- `reference`: **card, flashcard, question or statement → reference**, from any other `reference:` link.
   "This concept uses that result." (inverse: where a reference is used.)
 
 Every `requires`, `uses` and `reference` target is validated at compile, inside one domain and
@@ -937,7 +952,7 @@ in another repository, a cyclic `requires` graph and a cyclic `uses` graph.
 1. Make the topic directory, `<domain>/<section>/<topic>/`, with an `index.md`: its `title`,
    `tier`, any `requires`, and an `order` of the decks it will hold.
 2. Write each **deck** as `<deck>.md`: front matter (`title`), then `::: card` blocks (the
-   concept, one idea each), then `::: exercise` blocks (each with an `::: answer` and an
+   concept, one idea each), then `::: flashcard` blocks (each with an `::: answer` and an
    optional `::: solution`), then `::: reference <id>` blocks (each with a `# Title`, an
    `::: equation`, a `::: legend`, the statement and an optional `::: derivation`). Add the
    deck's id to the topic's `order`. Link a reference from anywhere with
@@ -951,7 +966,7 @@ in another repository, a cyclic `requires` graph and a cyclic `uses` graph.
    every fault with its file and, where it has one, its line. This is the gate a content
    repository runs in CI.
 6. Run the build, if you want to read the output. It renders everything to HTML and emits
-   `bundle.yaml` (version 6).
+   `bundle.yaml` (version 7).
 
 Anything half-written carries `draft: true` and is skipped by both (§1.3).
 
@@ -977,8 +992,8 @@ The structural rules come first. While one of them fails, nothing renders.
   | a deck, a checkpoint | `title`, `draft` |
 
 - blocks: a word outside the grammar, a block never closed or closed twice, a block in the
-  wrong place, a block two levels down, text outside a block (outside a checkpoint's instructions), an exercise without
-  an answer, two exercises or two figures in one file with one id, a reference without an id or
+  wrong place, a block two levels down, text outside a block (outside a checkpoint's instructions), a flashcard or a
+  question without an answer, two flashcards, two questions or two figures in one file with one id, a reference without an id or
   a `# Title`, two references of one domain with one id, a legend row without `:`;
 - plots: a plot that will not parse, a number that is not finite, a `step` or `ticks` of zero
   or less, a plot past a limit of §10.1, a plot outside a card or a figure, a second plot in a

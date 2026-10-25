@@ -29,7 +29,7 @@ const FIELD: &str = "---\ntitle: What a field is\n---\n\n::: card\nA field.\n:::
 fn valid(name: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!("stemin-format-{name}"));
     let _ = std::fs::remove_dir_all(&root);
-    put(&root, "index.md", "---\nformat: 2.0.0\norder: [phy]\n---\n");
+    put(&root, "index.md", "---\nformat: 3.0.0\norder: [phy]\n---\n");
     put(
         &root,
         "phy/index.md",
@@ -60,7 +60,7 @@ fn valid(name: &str) -> PathBuf {
         &root,
         "phy/checkpoints/mit/2020.md",
         "---\ntitle: Physics, 2020\n---\n\nNo notes.\n\n\
-         ::: exercise q1\nWhat is $I$?\n\n::: answer\n$V/R$.\n:::\n:::\n",
+         ::: question q1\nWhat is $I$?\n\n::: answer\n$V/R$.\n:::\n:::\n",
     );
     root
 }
@@ -180,14 +180,14 @@ fn a_major_version_this_build_cannot_read_is_refused() {
     let root = valid("major");
     put(&root, "index.md", "---\nformat: 1.0.0\norder: [phy]\n---\n");
     let found = faults(&root);
-    assert!(found.iter().any(|f| f.contains("reads 2.x")), "{found:?}");
+    assert!(found.iter().any(|f| f.contains("reads 3.x")), "{found:?}");
 }
 
 /// A minor bump is fine: the format may gain fields.
 #[test]
 fn a_newer_minor_is_accepted() {
     let root = valid("minor");
-    put(&root, "index.md", "---\nformat: 2.9.4\norder: [phy]\n---\n");
+    put(&root, "index.md", "---\nformat: 3.9.4\norder: [phy]\n---\n");
     assert_eq!(faults(&root), Vec::<String>::new());
 }
 
@@ -274,7 +274,7 @@ fn a_repository_with_no_root_index_says_so() {
 #[test]
 fn every_fault_is_reported_in_one_run() {
     let root = valid("all");
-    put(&root, "index.md", "---\nformat: 3.0.0\norder: [phy]\n---\n");
+    put(&root, "index.md", "---\nformat: 4.0.0\norder: [phy]\n---\n");
     put(
         &root,
         "phy/eam/fields/potential.md",
@@ -455,7 +455,7 @@ fn checkpoints_nest_in_folders_and_may_share_an_id() {
     put(
         &root,
         "phy/checkpoints/harvard/finals/2020.md",
-        "---\ntitle: Finals, 2020\n---\n\n::: exercise\nQ\n\n::: answer\nA\n:::\n:::\n",
+        "---\ntitle: Finals, 2020\n---\n\n::: question\nQ\n\n::: answer\nA\n:::\n:::\n",
     );
     assert_eq!(faults(&root), Vec::<String>::new());
     let (node, _) = tree::read(&root);
@@ -476,8 +476,27 @@ fn checkpoints_nest_in_folders_and_may_share_an_id() {
     );
 }
 
+/// Format 2 wrote `::: exercise` for a flashcard and for a question. The
+/// checker refuses the version, and it names the new block at each line.
+#[test]
+fn a_format_two_repository_is_refused() {
+    let root = valid("format-two");
+    put(&root, "index.md", "---\nformat: 2.0.0\norder: [phy]\n---\n");
+    put(
+        &root,
+        "phy/checkpoints/mit/2020.md",
+        "---\ntitle: T\n---\n\n::: exercise q1\nQ\n\n::: answer\nA\n:::\n:::\n",
+    );
+    let found = faults(&root);
+    assert!(found.iter().any(|f| f.contains("reads 3.x")), "{found:?}");
+    assert!(
+        has(&found, "2020.md:5", "write `flashcard` in a deck"),
+        "{found:?}"
+    );
+}
+
 /// Format 1 kept its references in a folder of their own. That content does
-/// not parse as format 2, and the checker says so rather than guessing.
+/// not parse as format 3, and the checker says so rather than guessing.
 #[test]
 fn a_format_one_repository_is_refused() {
     let root = valid("format-one");
@@ -498,7 +517,7 @@ fn a_format_one_repository_is_refused() {
         "---\ntitle: Ohm's law\n---\n\n::: equation\nI = V/R\n:::\n",
     );
     let found = faults(&root);
-    assert!(found.iter().any(|f| f.contains("reads 2.x")), "{found:?}");
+    assert!(found.iter().any(|f| f.contains("reads 3.x")), "{found:?}");
     assert!(
         found.iter().any(|f| f.contains("`reference` is reserved")),
         "{found:?}"
@@ -524,15 +543,15 @@ fn has(found: &[String], file: &str, phrase: &str) -> bool {
     found.iter().any(|f| f.contains(file) && f.contains(phrase))
 }
 
-/// An exercise with no answer has no back to its flashcard. The checker used
-/// to pass it, and only the import refused it.
+/// A question with no answer has nothing to reveal. The checker used to pass
+/// it, and only the import refused it.
 #[test]
-fn an_exercise_without_an_answer_is_caught() {
+fn a_question_without_an_answer_is_caught() {
     let root = valid("no-answer");
     put(
         &root,
         "phy/checkpoints/mit/2020.md",
-        "---\ntitle: T\n---\n\n::: exercise q1\nWhat is $I$?\n:::\n",
+        "---\ntitle: T\n---\n\n::: question q1\nWhat is $I$?\n:::\n",
     );
     let found = faults(&root);
     assert!(has(&found, "2020.md:5", "has no `::: answer`"), "{found:?}");
@@ -603,23 +622,23 @@ fn bad_yaml_in_a_deck_is_caught() {
     );
 }
 
-/// Two exercises with one id would share one schedule. A derived `e2` counts.
+/// Two questions with one id would share one progress. A derived `e2` counts.
 #[test]
-fn two_exercises_with_one_id_are_caught() {
-    let root = valid("exercise-twice");
+fn two_questions_with_one_id_are_caught() {
+    let root = valid("question-twice");
     put(
         &root,
         "phy/checkpoints/mit/2020.md",
         "---\ntitle: T\n---\n\n\
-         ::: exercise e2\nQ\n::: answer\nA\n:::\n:::\n\n\
-         ::: exercise\nQ\n::: answer\nA\n:::\n:::\n",
+         ::: question e2\nQ\n::: answer\nA\n:::\n:::\n\n\
+         ::: question\nQ\n::: answer\nA\n:::\n:::\n",
     );
     let found = faults(&root);
     assert!(
         has(
             &found,
             "2020.md:12",
-            "`e2` is already the id of another exercise in this file, at line 5"
+            "`e2` is already the id of another question in this file, at line 5"
         ),
         "{found:?}"
     );
@@ -652,7 +671,7 @@ fn a_plot_the_app_never_draws_is_caught() {
         "phy/eam/fields/field.md",
         &format!(
             "---\ntitle: X\n---\n\n::: card\n{plot}\n{plot}:::\n\n\
-             ::: exercise\nQ\n\n{plot}\n::: answer\nA\n:::\n:::\n"
+             ::: flashcard\nQ\n\n{plot}\n::: answer\nA\n:::\n:::\n"
         ),
     );
     let found = faults(&root);
@@ -661,7 +680,7 @@ fn a_plot_the_app_never_draws_is_caught() {
         "{found:?}"
     );
     assert!(
-        has(&found, "field.md:20", "this one sits in `exercise`"),
+        has(&found, "field.md:20", "this one sits in `flashcard`"),
         "{found:?}"
     );
 }

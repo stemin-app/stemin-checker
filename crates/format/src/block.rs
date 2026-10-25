@@ -10,7 +10,7 @@ use crate::error::FaultKind;
 
 /// The grammar, as one line, for an error message.
 pub const GRAMMAR: &str =
-    "card, figure, exercise, answer, solution, reference, equation, legend, derivation";
+    "card, figure, flashcard, question, answer, solution, reference, equation, legend, derivation";
 
 /// The one fenced language: a live figure the app draws (CONTENT-MODEL.md
 /// §10.1). A still one is an author's SVG asset.
@@ -18,7 +18,7 @@ pub const PLOT: &str = "plot";
 
 /// How deep blocks nest: a top-level block, and one level of children in it.
 ///
-/// The grammar needs no more (an `answer` in an `exercise`, a `legend` in a
+/// The grammar needs no more (an `answer` in a `flashcard`, a `legend` in a
 /// `reference`). A deeper tree is refused at parse time, so no later walk over
 /// the blocks can recurse without a bound.
 pub const MAX_NESTING: usize = 2;
@@ -74,11 +74,13 @@ pub enum BlockKind {
     Card,
     /// A diagram with a caption, on its own screen.
     Figure,
-    /// One practice item, reviewed as a flashcard.
-    Exercise,
-    /// An exercise's flashcard back.
+    /// One practice item of a deck, reviewed and scheduled.
+    Flashcard,
+    /// One question of a checkpoint. Nothing schedules it.
+    Question,
+    /// The back of a flashcard, or the answer to a question.
     Answer,
-    /// An exercise's worked answer.
+    /// The worked answer of a flashcard or a question.
     Solution,
     /// A result the learner looks up, declared in the deck that teaches it.
     Reference,
@@ -97,7 +99,8 @@ impl BlockKind {
         match self {
             Self::Card => "card",
             Self::Figure => "figure",
-            Self::Exercise => "exercise",
+            Self::Flashcard => "flashcard",
+            Self::Question => "question",
             Self::Answer => "answer",
             Self::Solution => "solution",
             Self::Reference => "reference",
@@ -115,13 +118,15 @@ impl BlockKind {
         Ok(match word {
             "card" => Self::Card,
             "figure" => Self::Figure,
-            "exercise" => Self::Exercise,
+            "flashcard" => Self::Flashcard,
+            "question" => Self::Question,
             "answer" => Self::Answer,
             "solution" => Self::Solution,
             "reference" => Self::Reference,
             "equation" => Self::Equation,
             "legend" => Self::Legend,
             "derivation" => Self::Derivation,
+            "exercise" => return Err(FaultKind::ExerciseBlock),
             other => {
                 return Err(FaultKind::UnknownBlock {
                     word: other.to_owned(),
@@ -136,7 +141,7 @@ impl BlockKind {
     pub const fn stands_alone(self) -> bool {
         matches!(
             self,
-            Self::Card | Self::Figure | Self::Exercise | Self::Reference
+            Self::Card | Self::Figure | Self::Flashcard | Self::Question | Self::Reference
         )
     }
 
@@ -144,7 +149,7 @@ impl BlockKind {
     #[must_use]
     pub const fn holds(self, child: Self) -> bool {
         match self {
-            Self::Exercise => matches!(child, Self::Answer | Self::Solution),
+            Self::Flashcard | Self::Question => matches!(child, Self::Answer | Self::Solution),
             Self::Reference => matches!(child, Self::Equation | Self::Legend | Self::Derivation),
             _ => false,
         }
@@ -372,7 +377,7 @@ fn parse_open(line: &str) -> Option<(&str, Option<String>)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BlockKind, parse};
+    use super::{BlockKind, FaultKind, parse};
 
     #[test]
     fn front_matter_splits_from_the_body() {
@@ -392,9 +397,9 @@ mod tests {
 
     #[test]
     fn blocks_nest_and_carry_ids() {
-        let doc = parse("::: exercise q1\nPrompt\n::: answer\nBack\n:::\n:::\n").expect("parses");
+        let doc = parse("::: flashcard q1\nPrompt\n::: answer\nBack\n:::\n:::\n").expect("parses");
         let ex = &doc.blocks[0];
-        assert_eq!(ex.kind, BlockKind::Exercise);
+        assert_eq!(ex.kind, BlockKind::Flashcard);
         assert_eq!(ex.id.as_deref(), Some("q1"));
         assert_eq!(
             ex.child(BlockKind::Answer).map(|a| a.body.trim()),
@@ -491,7 +496,7 @@ mod tests {
     #[test]
     fn a_block_two_levels_down_is_refused() {
         let (line, fault) =
-            parse("::: exercise\n::: answer\n::: card\nx\n:::\n:::\n:::\n").expect_err("too deep");
+            parse("::: flashcard\n::: answer\n::: card\nx\n:::\n:::\n:::\n").expect_err("too deep");
         assert_eq!(line, 3);
         assert!(matches!(fault, crate::error::FaultKind::NestedTooDeep(_)));
         // The audit's probe: thousands of levels, which used to overflow the
@@ -503,8 +508,13 @@ mod tests {
 
     #[test]
     fn nesting_rules_hold() {
-        assert!(BlockKind::Exercise.holds(BlockKind::Answer));
-        assert!(BlockKind::Exercise.holds(BlockKind::Solution));
+        assert!(BlockKind::Flashcard.holds(BlockKind::Answer));
+        assert!(BlockKind::Flashcard.holds(BlockKind::Solution));
+        assert!(BlockKind::Question.holds(BlockKind::Answer));
+        assert_eq!(
+            BlockKind::parse("exercise").map_err(|fault| fault.to_string()),
+            Err(FaultKind::ExerciseBlock.to_string())
+        );
         assert!(!BlockKind::Card.holds(BlockKind::Answer));
         assert!(!BlockKind::Answer.stands_alone());
         assert!(BlockKind::Card.stands_alone());

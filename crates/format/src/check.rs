@@ -166,10 +166,12 @@ fn all_blocks(blocks: &[Block]) -> Vec<&Block> {
     out
 }
 
-/// Every exercise has an `::: answer`: the back of its flashcard.
+/// Every flashcard and every question has an `::: answer`.
 fn check_answers(node: &Node, faults: &mut Vec<Fault>) {
     for block in all_blocks(&node.doc.blocks) {
-        if block.kind == BlockKind::Exercise && block.child(BlockKind::Answer).is_none() {
+        if matches!(block.kind, BlockKind::Flashcard | BlockKind::Question)
+            && block.child(BlockKind::Answer).is_none()
+        {
             faults.push(Fault::line(&node.path, block.line, FaultKind::NoAnswer));
         }
     }
@@ -244,12 +246,14 @@ fn check_loose_text(node: &Node, faults: &mut Vec<Fault>) {
     }
 }
 
-/// No two exercises, and no two figures, in one file share an id. An exercise
-/// with no id is `e1`, `e2` by its place among the exercises, and a figure
-/// with none is `f1`, `f2`, so a written `e2` can collide with a derived one.
+/// No two flashcards, no two questions, and no two figures, in one file share
+/// an id. A flashcard or a question with no id is `e1`, `e2` by its place
+/// among its kind, and a figure with none is `f1`, `f2`, so a written `e2` can
+/// collide with a derived one. The `e` stays from format 2, so no id moves.
 fn check_local_ids(node: &Node, faults: &mut Vec<Fault>) {
     for (kind, what, prefix) in [
-        (BlockKind::Exercise, "exercise", 'e'),
+        (BlockKind::Flashcard, "flashcard", 'e'),
+        (BlockKind::Question, "question", 'e'),
         (BlockKind::Figure, "figure", 'f'),
     ] {
         let mut seen: HashMap<String, usize> = HashMap::new();
@@ -684,16 +688,16 @@ fn check_references(root: &Node, faults: &mut Vec<Fault>) {
 /// Whether a block kind belongs in a file of this kind. This is the same rule
 /// `core`'s build enforces when it renders, and the checker must agree with it.
 ///
-/// A deck is the only thing an author teaches with: its cards, its exercises
+/// A deck is the only thing an author teaches with: its cards, its flashcards
 /// and its references. A checkpoint holds questions of its own.
 #[must_use]
 pub const fn belongs(kind: Kind, block: BlockKind) -> bool {
     match kind {
         Kind::Deck => matches!(
             block,
-            BlockKind::Card | BlockKind::Figure | BlockKind::Exercise | BlockKind::Reference
+            BlockKind::Card | BlockKind::Figure | BlockKind::Flashcard | BlockKind::Reference
         ),
-        Kind::Checkpoint => matches!(block, BlockKind::Exercise),
+        Kind::Checkpoint => matches!(block, BlockKind::Question),
         Kind::Root | Kind::Domain | Kind::Section | Kind::Topic | Kind::CheckpointFolder => false,
     }
 }

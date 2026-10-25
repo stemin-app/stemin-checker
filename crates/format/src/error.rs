@@ -86,7 +86,7 @@ pub enum FaultKind {
     FormatMajor { found: String, readable: u64 },
 
     /// `format:` is missing or not semantic versioning.
-    #[error("`format:` must be a semantic version like `2.0.0`, and {0}")]
+    #[error("`format:` must be a semantic version like `3.0.0`, and {0}")]
     FormatMalformed(String),
 
     /// The YAML front matter will not parse.
@@ -105,10 +105,17 @@ pub enum FaultKind {
     #[error("`{word}` is not a block: the grammar is {}", crate::block::GRAMMAR)]
     UnknownBlock { word: String },
 
+    /// The block of format 2 that format 3 split in two.
+    #[error(
+        "`exercise` is not a block since format 3: write `flashcard` in a deck \
+         and `question` in a checkpoint"
+    )]
+    ExerciseBlock,
+
     /// A block opened inside a block that already sits inside another.
     #[error(
         "`::: {0}` opens two blocks deep, and a block nests one level at most \
-         (an `answer` in an `exercise`, a `legend` in a `reference`): \
+         (an `answer` in a `flashcard`, a `legend` in a `reference`): \
          close the block above it first"
     )]
     NestedTooDeep(String),
@@ -254,10 +261,10 @@ pub enum FaultKind {
     #[error("`lang:` is missing or malformed: a domain declares one BCP 47 tag, like `en`")]
     BadLang,
 
-    /// An exercise with no flashcard back.
+    /// A flashcard or a question with no answer.
     #[error(
-        "this exercise has no `::: answer`: the answer is the back of its flashcard, \
-         and every exercise needs one"
+        "this block has no `::: answer`: a flashcard needs its back, and a question \
+         its answer"
     )]
     NoAnswer,
 
@@ -273,7 +280,7 @@ pub enum FaultKind {
     #[error("`{0}` is not a label: the labels are {names}", names = crate::front::label_names())]
     UnknownLabel(String),
 
-    /// Two exercises, or two figures, in one file with one id.
+    /// Two flashcards, two questions, or two figures, in one file with one id.
     #[error("`{id}` is already the id of another {what} in this file, at line {line}: rename one")]
     DuplicateLocal {
         id: String,

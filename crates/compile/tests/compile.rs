@@ -39,13 +39,13 @@ fn small() -> Files {
         "---\ntitle: What a field is\n---\n\n\
          ::: card\nA field is an influence at every point, $E = F/q$.\n\
          See [Ohm's law](reference:ohms-law).\n:::\n\n\
-         ::: exercise q1\nWhat does a field act on?\n\n\
+         ::: flashcard q1\nWhat does a field act on?\n\n\
          ::: answer\nCharge.\n:::\n:::\n\n{OHMS_LAW}"
     );
     let mut files = repo(&[
         (
             "index.md",
-            "---\nformat: 2.0.0\nauthor: A Name\ndescription: A course.\norder: [phy]\n---\n",
+            "---\nformat: 3.0.0\nauthor: A Name\ndescription: A course.\norder: [phy]\n---\n",
         ),
         (
             "phy/index.md",
@@ -109,9 +109,26 @@ fn a_card_renders_to_self_contained_html() {
     assert!(card.html.contains("<math"), "{}", card.html);
     assert!(card.html.contains("reference-link"), "{}", card.html);
     assert!(!card.rev.is_empty());
-    // The exercise came through with its answer.
-    assert_eq!(deck.exercises.len(), 1);
-    assert!(deck.exercises[0].answer.contains("Charge"));
+    // The flashcard came through with its answer.
+    assert_eq!(deck.flashcards.len(), 1);
+    assert!(deck.flashcards[0].answer.contains("Charge"));
+}
+
+/// A flashcard between two cards stands before the next card: an inline
+/// flashcard. One after the last card shows in the sets only.
+#[test]
+fn a_flashcard_between_cards_is_inline() {
+    let files = with_deck(
+        "::: card\nOne.\n:::\n\n\
+         ::: flashcard q1\nFirst?\n\n::: answer\nYes.\n:::\n:::\n\n\
+         ::: card\nTwo.\n:::\n\n\
+         ::: flashcard q2\nLast?\n\n::: answer\nNo.\n:::\n:::\n",
+    );
+    let bundles = build(&files);
+    let deck = bundles[0].decks.values().next().expect("one deck");
+    assert_eq!(deck.cards.len(), 2);
+    let places: Vec<Option<usize>> = deck.flashcards.iter().map(|e| e.before).collect();
+    assert_eq!(places, [Some(1), None]);
 }
 
 /// An asset is inlined: a picture is part of the card, and nothing is fetched
@@ -124,7 +141,7 @@ fn an_svg_asset_is_re_emitted_into_the_card() {
         Blob::new(
             "---\ntitle: What a field is\n---\n\n\
              ::: card\n![A line](assets/line.svg)\n:::\n\n\
-             ::: exercise q1\nWhy?\n\n::: answer\nBecause.\n:::\n:::\n"
+             ::: flashcard q1\nWhy?\n\n::: answer\nBecause.\n:::\n:::\n"
                 .into(),
         ),
     );
@@ -159,7 +176,7 @@ fn a_plot_block_becomes_a_spec() {
              y: { label: \"$E$\", from: 0, to: 1 }\n\
              inputs:\n  - { name: q, min: 1, max: 4, default: 1, step: 1 }\n\
              draw:\n  - curve: { is: q / (r * r), accent: true }\n```\n:::\n\n\
-             ::: exercise q1\nWhy?\n\n::: answer\nBecause.\n:::\n:::\n"
+             ::: flashcard q1\nWhy?\n\n::: answer\nBecause.\n:::\n:::\n"
                 .into(),
         ),
     );
@@ -183,7 +200,7 @@ fn a_cross_domain_reference_resolves_and_a_foreign_one_does_not() {
     let mut files = small();
     files.insert(
         "index.md".to_owned(),
-        Blob::new("---\nformat: 2.0.0\norder: [phy, math]\n---\n".into()),
+        Blob::new("---\nformat: 3.0.0\norder: [phy, math]\n---\n".into()),
     );
     files.insert(
         "math/index.md".to_owned(),
@@ -201,7 +218,7 @@ fn a_cross_domain_reference_resolves_and_a_foreign_one_does_not() {
         "math/alg/linears/solving.md".to_owned(),
         Blob::new(
             "---\ntitle: Solving\n---\n\n::: card\nIsolate the unknown.\n:::\n\n\
-             ::: exercise q1\nSolve it.\n\n::: answer\n$x = 3$.\n:::\n:::\n\n\
+             ::: flashcard q1\nSolve it.\n\n::: answer\n$x = 3$.\n:::\n:::\n\n\
              ::: reference intercept\n# The intercept\n\nIt meets the axis at $b$.\n:::\n"
                 .into(),
         ),
@@ -289,6 +306,17 @@ fn a_readme_beside_the_domains_is_not_a_domain() {
 
 /// The bundle round-trips through JSON, which is how it crosses from the
 /// worker to the device and back out of `IndexedDB`.
+/// A device holds artifacts of bundle 6 until it compiles them again, and it
+/// must read them meanwhile: there a deck's flashcards were `exercises`.
+#[test]
+fn a_version_six_deck_still_reads() {
+    let six =
+        r#"{"title":"T","cards":[],"exercises":[{"id":"q1","rev":"r","prompt":"P","answer":"A"}]}"#;
+    let deck: stemin_compile::model::DeckDef = serde_json::from_str(six).expect("reads");
+    assert_eq!(deck.flashcards.len(), 1);
+    assert_eq!(deck.flashcards[0].before, None);
+}
+
 #[test]
 fn a_bundle_round_trips_through_json() {
     let bundles = build(&small());
@@ -321,7 +349,7 @@ fn a_plot_round_trips_through_json_and_yaml() {
 }
 
 /// A corrected answer is a different question to the scheduler, so the
-/// exercise's rev moves with it and the refresh clears its schedule.
+/// flashcard's rev moves with it and the refresh clears its schedule.
 #[test]
 fn an_edited_answer_moves_the_rev() {
     let before = build(&small());
@@ -339,8 +367,8 @@ fn an_edited_answer_moves_the_rev() {
             .decks
             .values()
             .next()
-            .map(|deck| deck.exercises[0].rev.clone())
-            .expect("one exercise")
+            .map(|deck| deck.flashcards[0].rev.clone())
+            .expect("one flashcard")
     };
     assert_ne!(rev(&before), rev(&after));
 }
@@ -355,7 +383,7 @@ fn a_figure_id_cannot_become_markup() {
             "---\ntitle: A field\n---\n\n\
              ::: card\nSee [it](<figure:a\"onmouseover=\"x>).\n:::\n\n\
              ::: figure a\"onmouseover=\"x\n![A line](assets/line.svg)\n\nA caption.\n:::\n\n\
-             ::: exercise q1\nWhy?\n\n::: answer\nBecause.\n:::\n:::\n"
+             ::: flashcard q1\nWhy?\n\n::: answer\nBecause.\n:::\n:::\n"
                 .into(),
         ),
     );
@@ -413,7 +441,7 @@ fn checkpoints_compile_as_a_tree_of_folders() {
         (
             "phy/checkpoints/mit/2020.md",
             "---\ntitle: Physics, 2020\n---\n\nNo notes.\n\n\
-             ::: exercise q1\nWhat is $I$?\n\n::: answer\n$V/R$.\n:::\n\n\
+             ::: question q1\nWhat is $I$?\n\n::: answer\n$V/R$.\n:::\n\n\
              ::: solution\nBy [Ohm's law](reference:ohms-law).\n:::\n:::\n",
         ),
     ] {
@@ -432,12 +460,12 @@ fn checkpoints_compile_as_a_tree_of_folders() {
     assert!(exam.html.contains("No notes"), "{}", exam.html);
     assert_eq!(exam.questions.len(), 1);
     assert!(exam.questions[0].solution.is_some());
-    // A checkpoint's question is not a deck's exercise.
+    // A checkpoint's question is not a deck's flashcard.
     assert_eq!(
         bundle
             .decks
             .values()
-            .map(|d| d.exercises.len())
+            .map(|d| d.flashcards.len())
             .sum::<usize>(),
         1
     );
@@ -549,7 +577,7 @@ fn bad_latex_in_a_reference_is_refused() {
 fn a_dangling_link_is_refused_even_in_an_answer() {
     let found = faults(&with_deck(
         "::: card\nSee [it](reference:nope).\n:::\n\n\
-         ::: exercise q1\nWhy?\n\n::: answer\nBy [this](reference:gone).\n:::\n:::\n",
+         ::: flashcard q1\nWhy?\n\n::: answer\nBy [this](reference:gone).\n:::\n:::\n",
     ));
     assert!(
         has(
@@ -573,13 +601,13 @@ fn a_dangling_link_is_refused_even_in_an_answer() {
     );
 }
 
-/// A link in an answer is a `reference` edge from its exercise, as a link in
+/// A link in an answer is a `reference` edge from its flashcard, as a link in
 /// its prompt is.
 #[test]
 fn a_link_in_an_answer_is_an_edge() {
     let bundles = build(&with_deck(
         "::: card\nX\n:::\n\n\
-         ::: exercise q1\nWhy?\n\n::: answer\nBy [Ohm's law](reference:ohms-law).\n:::\n:::\n",
+         ::: flashcard q1\nWhy?\n\n::: answer\nBy [Ohm's law](reference:ohms-law).\n:::\n:::\n",
     ));
     let edge = bundles[0]
         .edges
@@ -597,7 +625,7 @@ fn a_dangling_link_into_another_domain_is_refused() {
     let mut files = small();
     files.insert(
         "index.md".to_owned(),
-        Blob::new("---\nformat: 2.0.0\norder: [phy, math]\n---\n".into()),
+        Blob::new("---\nformat: 3.0.0\norder: [phy, math]\n---\n".into()),
     );
     for (path, body) in [
         (
